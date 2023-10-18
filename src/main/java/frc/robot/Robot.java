@@ -6,8 +6,15 @@ package frc.robot;
 
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
+import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+
+import com.ctre.phoenix6.StatusSignal;
+import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.PositionVoltage;
+import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -18,9 +25,14 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 public class Robot extends TimedRobot {
 
   private XboxController mController;
+  private TalonFX mMotor;
+
+  private static final int kControllerPort = 0;
+  private static final int kMotorCANId = 5;
 
   public Robot() {
-    mController = new XboxController(0);
+    mController = new XboxController(kControllerPort);
+    mMotor = new TalonFX(kMotorCANId);
   }
 
   /**
@@ -29,7 +41,23 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotInit() {
+    // apply config
+    TalonFXConfiguration config = new TalonFXConfiguration();
 
+    // set current limit
+    config.TorqueCurrent.PeakForwardTorqueCurrent = 30;
+    config.TorqueCurrent.PeakReverseTorqueCurrent = 30;
+    
+    // config feedback
+    config.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.RotorSensor;
+    config.Feedback.FeedbackRotorOffset = 0;
+
+    // config PID
+    config.Slot0.kP = 6.0; // volts per rotation, error of 0.5 rotations results in 3 volt output
+    config.Slot0.kD = 0.0;
+
+    // apply config to motor
+    mMotor.getConfigurator().apply(config);
   }
 
   /**
@@ -40,7 +68,9 @@ public class Robot extends TimedRobot {
    * SmartDashboard integrated updating.
    */
   @Override
-  public void robotPeriodic() {}
+  public void robotPeriodic() {
+    SmartDashboard.putNumber("encoderPosition", mMotor.getRotorPosition().getValue());
+  }
 
   /**
    * This autonomous (along with the chooser code above) shows how to select between different
@@ -54,32 +84,37 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void autonomousInit() {
-    m_autoSelected = m_chooser.getSelected();
-    // m_autoSelected = SmartDashboard.getString("Auto Selector", kDefaultAuto);
-    System.out.println("Auto selected: " + m_autoSelected);
   }
 
   /** This function is called periodically during autonomous. */
   @Override
   public void autonomousPeriodic() {
-    switch (m_autoSelected) {
-      case kCustomAuto:
-        // Put custom auto code here
-        break;
-      case kDefaultAuto:
-      default:
-        // Put default auto code here
-        break;
-    }
   }
 
   /** This function is called once when teleop is enabled. */
   @Override
-  public void teleopInit() {}
+  public void teleopInit() {
+    // reset sensor position
+    mMotor.setRotorPosition(0);
+  }
 
   /** This function is called periodically during operator control. */
   @Override
-  public void teleopPeriodic() {}
+  public void teleopPeriodic() {
+    if(mController.getBButton()) {
+      // get value of left stick
+      final double leftStick = mController.getLeftY();
+      // set raw speed 
+      mMotor.set(leftStick);
+    } else if(mController.getAButton()) {
+      // get current position
+      double currentPos = mMotor.getPosition().getValue();
+      // set goal to another rotation
+      var control = new PositionVoltage(currentPos + 1.0, false, 0, 0, false);
+      // set closed loop position
+      mMotor.setControl(control);
+    }
+  }
 
   /** This function is called once when the robot is disabled. */
   @Override
