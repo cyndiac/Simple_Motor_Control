@@ -45,8 +45,8 @@ public class Robot extends TimedRobot {
     TalonFXConfiguration config = new TalonFXConfiguration();
 
     // set current limit
-    config.TorqueCurrent.PeakForwardTorqueCurrent = 30;
-    config.TorqueCurrent.PeakReverseTorqueCurrent = 30;
+    config.TorqueCurrent.PeakForwardTorqueCurrent = 5;
+    config.TorqueCurrent.PeakReverseTorqueCurrent = 5;
     
     // config feedback
     config.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.RotorSensor;
@@ -103,7 +103,7 @@ public class Robot extends TimedRobot {
   public void teleopPeriodic() {
     if(mController.getBButton()) {
       // get value of left stick
-      final double leftStick = mController.getLeftY();
+      final double leftStick = mController.getLeftY() / 10;
       // set raw speed 
       mMotor.set(leftStick);
     } else if(mController.getAButton()) {
@@ -114,6 +114,10 @@ public class Robot extends TimedRobot {
       // set closed loop position
       mMotor.setControl(control);
     }
+  }
+
+  public void stopMotor () {
+    mMotor.set(0);
   }
 
   /** This function is called once when the robot is disabled. */
