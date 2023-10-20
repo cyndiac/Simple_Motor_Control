@@ -7,12 +7,14 @@ package frc.robot;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.PositionVoltage;
+import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 
@@ -30,6 +32,9 @@ public class Robot extends TimedRobot {
   private static final int kControllerPort = 0;
   private static final int kMotorCANId = 5;
 
+  private static final VelocityVoltage velocityControl = new VelocityVoltage(0, false, 0, 0, false);
+  private static final PositionVoltage positionControl = new PositionVoltage(0, false, 0, 0, false);
+
   public Robot() {
     mController = new XboxController(kControllerPort);
     mMotor = new TalonFX(kMotorCANId);
@@ -45,12 +50,18 @@ public class Robot extends TimedRobot {
     TalonFXConfiguration config = new TalonFXConfiguration();
 
     // set current limit
-    config.TorqueCurrent.PeakForwardTorqueCurrent = 5;
-    config.TorqueCurrent.PeakReverseTorqueCurrent = 5;
+    config.CurrentLimits.SupplyCurrentLimit = 5;
+    config.CurrentLimits.StatorCurrentLimit = 5;
+    config.CurrentLimits.SupplyCurrentLimitEnable = true;
+    config.CurrentLimits.StatorCurrentLimitEnable = true;
+
+    // config.TorqueCurrent.PeakForwardTorqueCurrent = 5;
+    // config.TorqueCurrent.PeakReverseTorqueCurrent = 5;
     
     // config feedback
     config.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.RotorSensor;
     config.Feedback.FeedbackRotorOffset = 0;
+
 
     // config PID
     config.Slot0.kP = 6.0; // volts per rotation, error of 0.5 rotations results in 3 volt output
@@ -103,16 +114,19 @@ public class Robot extends TimedRobot {
   public void teleopPeriodic() {
     if(mController.getBButton()) {
       // get value of left stick
-      final double leftStick = mController.getLeftY() / 10;
+      double leftStick = mController.getLeftY() / 10;
       // set raw speed 
       mMotor.set(leftStick);
     } else if(mController.getAButton()) {
       // get current position
       double currentPos = mMotor.getPosition().getValue();
-      // set goal to another rotation
-      var control = new PositionVoltage(currentPos + 1.0, false, 0, 0, false);
       // set closed loop position
-      mMotor.setControl(control);
+      mMotor.setControl(positionControl.withPosition(currentPos + 1.0));
+    } else if (mController.getXButton()) {
+      // Our desired speed
+      double desiredRotationsPerSecond = 0.5;
+      // Set our velocity
+      mMotor.setControl(velocityControl.withVelocity(desiredRotationsPerSecond));
     }
   }
 
