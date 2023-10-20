@@ -7,6 +7,7 @@ package frc.robot;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.shuffleboard.Shuffleboard;
+import edu.wpi.first.wpilibj.shuffleboard.ShuffleboardTab;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
@@ -28,7 +29,8 @@ public class Robot extends TimedRobot {
   private TalonFX mMotor;
 
   private static final int kControllerPort = 0;
-  private static final int kMotorCANId = 5;
+  private static final int kMotorCANId = 10;
+  private ShuffleboardTab tab = Shuffleboard.getTab("Encoder");
 
   public Robot() {
     mController = new XboxController(kControllerPort);
@@ -45,19 +47,21 @@ public class Robot extends TimedRobot {
     TalonFXConfiguration config = new TalonFXConfiguration();
 
     // set current limit
-    config.TorqueCurrent.PeakForwardTorqueCurrent = 30;
-    config.TorqueCurrent.PeakReverseTorqueCurrent = 30;
+    config.TorqueCurrent.PeakForwardTorqueCurrent = 5;
+    config.TorqueCurrent.PeakReverseTorqueCurrent = 5;
     
     // config feedback
     config.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.RotorSensor;
     config.Feedback.FeedbackRotorOffset = 0;
 
     // config PID
-    config.Slot0.kP = 6.0; // volts per rotation, error of 0.5 rotations results in 3 volt output
+    config.Slot0.kP = 0.5; // volts per rotation, error of 0.5 rotations results in 3 volt output
     config.Slot0.kD = 0.0;
 
     // apply config to motor
     mMotor.getConfigurator().apply(config);
+    //add to shuffleboard tab
+    tab.addDouble("Encoder Value", () -> mMotor.getRotorPosition().getValue());
   }
 
   /**
@@ -69,7 +73,7 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotPeriodic() {
-    SmartDashboard.putNumber("encoderPosition", mMotor.getRotorPosition().getValue());
+    // SmartDashboard.putNumber("encoderPosition", mMotor.getRotorPosition().getValue());
   }
 
   /**
@@ -101,25 +105,35 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during operator control. */
   @Override
   public void teleopPeriodic() {
+
     if(mController.getBButton()) {
       // get value of left stick
-      final double leftStick = mController.getLeftY();
+      final double leftStick = (mController.getLeftY())/10;
       // set raw speed 
       mMotor.set(leftStick);
-    } else if(mController.getAButton()) {
+    } else{
+      stopMotor(mMotor);
+    }
+    if(mController.getAButton()) {
       // get current position
       double currentPos = mMotor.getPosition().getValue();
       // set goal to another rotation
       var control = new PositionVoltage(currentPos + 1.0, false, 0, 0, false);
       // set closed loop position
       mMotor.setControl(control);
+    } else if(mController.getXButton()){
+      mMotor.set(0.1);
     }
+  }
+  public void stopMotor(TalonFX talon){
+    talon.stopMotor();
   }
 
   /** This function is called once when the robot is disabled. */
   @Override
-  public void disabledInit() {}
-
+  public void disabledInit() {
+    stopMotor(mMotor);
+  }
   /** This function is called periodically when disabled. */
   @Override
   public void disabledPeriodic() {}
